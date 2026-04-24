@@ -4,8 +4,8 @@ This repository contains code used to perform the meta-analyses in the Beyond th
 
 Four R notebook files contain the code.
 
-The '''example_metaanalysis_metacor''' and '''example_metaanalysis_metagen'' R notebooks contain the code used to perform the meta-analyses using the two different functions.
+The 'example_metaanalysis_metacor' and 'example_metaanalysis_metagen' R notebooks contain the code used to perform the meta-analyses using the two different functions.
 
-The '''ROB''' R notebook contains code used to process and generate figures showing the results of the risk of bias assessment for the meta-analyses.
+The 'ROB' R notebook contains code used to process and generate figures showing the results of the risk of bias assessment for the meta-analyses.
 
-The '''all_data_representation''' R notebook contains code used to process and generate figures showing the representativness of the meta-analyses.
+The 'all_data_representation' R notebook contains code used to process and generate figures showing the representativness of the meta-analyses.
