@@ -1,0 +1,91 @@
+This code analyses the representativness of the data in the systematic review
+
+The imput CSV for this code has columns;
+- paper - the name of the source paper
+- Location_Continent - the continent where the datapoint was collected
+- Latitude_class - the latitude of the location of the datapoint, split into tropical, temperate, boreal, and unknown
+- peat_type - the type of peatland
+- depth_class - the depth of the sample, split into 10 cm categories
+- n - number of data points
+
+```{r}
+library(tidyverse)
+library("viridis")  
+```
+
+```{r}
+## load data from CSV 
+dat <- read_csv("./datasets/all_data.csv")
+glimpse(dat)
+```
+
+```{r}
+# calculating the percentage of each type of peatland
+type <- aggregate(n ~ peat_type, data=dat, sum) #SUMIF function
+type$percentage <- prop.table(type$n, margin = NULL)*100
+type
+```
+
+
+```{r}
+# plotting the peat types onto a barplot
+q <- type %>%
+  mutate(peat_type = fct_reorder(peat_type, n)) %>% #reordering by value of n
+  ggplot(aes(x=peat_type, y=n, fill=peat_type)) + 
+    geom_bar(stat = "identity") +
+    scale_color_viridis(discrete = TRUE, option = "D", direction = -1)+
+    scale_fill_viridis(discrete = TRUE, direction = -1) +
+    xlab("") +
+    ylab("Datapoints (n)") +
+    coord_flip()+
+    theme_classic()+
+    theme(legend.position="none", 
+          axis.title = element_text(size=15),  
+          axis.text = element_text(size=15))  
+
+ggsave("./output_graphs/peat_type_distribution.png",
+  plot = last_plot())
+q
+```
+
+```{r}
+# calculating the percentage of each depth category
+depth <- aggregate(n ~ depth_class, data=dat, sum) #SUMIF function
+depth$percentage <- prop.table(depth$n, margin = NULL)*100
+depth
+```
+
+```{r}
+# plotting the sample depth categories onto a barplot
+p <- depth %>%
+  mutate(depth_class = fct_relevel(depth_class,"Unknown","Range >10cm",">50 cm", "41-50 cm","31-40 cm",
+              "21-30 cm","11-20 cm","<10 cm")) %>% #reordering by set order
+  ggplot(aes(x=depth_class, y=n, fill=depth_class)) + 
+    geom_bar(stat = "identity") + #required for this type of plot
+    scale_fill_viridis(discrete = TRUE, option = "B") +
+    xlab("") + # no x label
+    ylab("Datapoints (n)") +
+    coord_flip() + #rotate horozontal
+    theme_classic()+ #classic theme
+    theme(legend.position="none",  #no legend
+          axis.title = element_text(size=15),  
+          axis.text = element_text(size=15))  
+  
+ggsave("./output_graphs/depth_distribution.png",
+  plot = last_plot())
+p
+```
+
+```{r}
+# calculating the percentage of samples from each continent
+continent <- aggregate(n ~ Location_Continent, data=dat, sum) #SUMIF function
+continent$percentage <- prop.table(continent$n, margin = NULL)*100
+continent
+```
+
+```{r}
+# calculating the percentage of samples from each latitude class
+lat <- aggregate(n ~ Latitude_class, data=dat, sum) #SUMIF function
+lat$percentage <- prop.table(lat$n, margin = NULL)*100
+lat
+```

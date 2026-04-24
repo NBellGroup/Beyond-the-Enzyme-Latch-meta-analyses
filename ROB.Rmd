@@ -1,0 +1,150 @@
+processing based on: https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/pooling-es.html#pooling-cor
+
+meta package documentation https://cran.r-project.org/web/packages/meta/meta.pdf
+
+```{r}
+library(tidyverse)
+library(meta)
+library(robvis)
+library(dplyr)
+``` 
+
+This code analyses risk of bias assessment for the meta-analyses.
+
+The imput CSV for the analysis by study
+- study - the name of the source paper
+- D1-6 - 6 columns with the results of the risk of bias assessment in 6 domains categorised as 1-3 (low - high risk of bias), or NA if that category is not relevant to a particular study
+- ranking - an overall assessment of the risk of bias for the study as a string (low, high, unclear)
+- weight - required for robvis package
+
+```{r}
+## load data from CSV containing ROB data
+ROB <- read_csv("./datasets/ROB.csv")
+glimpse(ROB)
+```
+
+```{r}
+#creating risk of bias object
+r1 <- rob(studlab =ROB$Study, 
+    item1=ROB$D1,
+    item2=ROB$D2,
+    item3=ROB$D3,
+    item4=ROB$D4,
+    item5=ROB$D5,
+    item6=ROB$D6,
+    overall=ROB$Ranking,
+    categories=c("High risk of bias", "Unclear risk of bias", "Low risk of bias"),
+    col=c("red3", "yellow","chartreuse" ),
+    symbols=c("-", "?", "+"),
+    domains=c("Details about site(s)/peat","Details of methodology","Exposure of samples to oxygen","Representativeness of sampling across site(s)","Similarity of control or comparisons","Extent of intervention/comparison")
+    )
+
+r1
+```
+
+```{r}
+#creating traffic light plot from ROB item
+png(file = "./output_graphs/ROB_trafficlight_plot.png",width = 7000, height = 18000, res = 600)
+
+traffic_light(r1,psize=10)+theme(strip.text.y.left = element_text(angle = 0))
+
+dev.off()
+```
+
+```{r}
+# counting the risk of bias categories in each domain, adding this to a new dataframe
+counts <- ROB %>%
+  pivot_longer(
+    cols = c(D1, D2, D3, D4, D5, D6),
+    names_to = "Domain",
+    values_to = "Category"
+  ) %>%
+  filter(Category %in% 1:3) %>%
+  count(Domain, Category)
+
+counts <- counts %>%
+  mutate(
+    Category = case_when(
+      Category == 1 ~ "Low",
+      Category == 2 ~ "Unclear",
+      Category == 3 ~ "High"
+    )
+  )
+
+# adding in the overall counts from the 'Ranking' column in the original dataframe
+ranking_counts <- ROB %>%
+  count(Ranking) %>%
+  rename(Column = "Ranking", Category = "Ranking")
+
+# add a constant 'Column' value
+ranking_counts <- ranking_counts %>%
+  mutate(Domain = "Overall")
+
+# bind the ranking counts to the counts_ROB:
+counts_ROB <- bind_rows(counts, ranking_counts)
+
+#changing the names of domains
+new_labels <- c("Details about site(s)/peat","Details of methodology","Exposure of samples to oxygen","Representativeness of sampling across site(s)","Similarity of control or comparisons","Extent of intervention/comparison")
+
+counts_ROB <- counts_ROB %>%
+  mutate(
+    Domain = recode(Domain, 
+                      "D1" = new_labels[1], 
+                      "D2" = new_labels[2], 
+                      "D3" = new_labels[3], 
+                      "D4" = new_labels[4], 
+                      "D5" = new_labels[5], 
+                      "D6" = new_labels[6])
+  )
+
+counts_ROB
+```
+
+```{r}
+# create png plot for subgroup analysis
+png(file = "./output_graphs/ROB_domains.png", width = 6000, height = 3000, res = 600)
+
+# A stacked barplot
+counts_ROB %>%
+    mutate(Domain = fct_relevel(Domain,"Details about site(s)/peat","Details of methodology","Exposure of samples to oxygen","Representativeness of sampling across site(s)","Similarity of control or comparisons","Extent of intervention/comparison", "Overall")) %>% #reordering by set order
+    mutate (`Category` = fct_relevel(`Category`, "Low", "Unclear", "High")) %>%
+    ggplot(aes(x=n, y=Domain, fill=`Category`)) +
+    geom_bar(position="fill", stat="identity", width = 0.5) +
+        scale_fill_manual(values=c("red3", "yellow", "chartreuse"))+
+    xlab("Proportion")+
+    scale_y_discrete(limits=rev)+
+    theme_bw(base_size = 14)
+
+dev.off()
+
+```
+
+The imput CSV for the analysis by meta-analysis
+- Meta-analysis - label for the 6 meta-analyses
+- Risk of bias - category
+- n - count
+
+```{r}
+## load data from CSV containing ROB data
+m_ROB <- read_csv("./datasets/ROB_metaanalyses.csv")
+glimpse(m_ROB)
+```
+
+```{r}
+# A stacked barplot
+m <- m_ROB %>%
+    mutate(`Meta-analysis` = fct_relevel(`Meta-analysis`,"A","B","C","D","E","F")) %>% #reordering by set order
+    mutate (`Risk of bias` = fct_relevel(`Risk of bias`, "High", "Unclear", "Low")) %>%
+    ggplot(aes(x=n, y=`Meta-analysis`, fill=`Risk of bias`)) +
+    geom_bar(position="fill", stat="identity", width = 0.5) +
+    #scale_fill_viridis(discrete=TRUE, name="") +
+    #theme_ipsum() +
+    scale_fill_manual(values=c("chartreuse", "yellow", "red3"))+
+    xlab("Proportion")+
+    scale_y_discrete(limits=rev)
+
+ggsave("./output_graphs/ROB_metaanalyses.png",
+  plot = last_plot())
+
+m
+```

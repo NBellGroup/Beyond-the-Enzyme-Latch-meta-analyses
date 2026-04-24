@@ -1,0 +1,196 @@
+processing based on: https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/pooling-es.html#pooling-cor
+
+meta package documentation https://cran.r-project.org/web/packages/meta/meta.pdf
+
+```{r}
+#install library packagages
+library(tidyverse)
+library(meta)
+```
+This code uses the metacor function in meta to do the meta- analysis on data with correlational effects
+
+The CSV for meta-analysis using this code has columns;
+- paper - the name of the source paper (label applied in forest plots)
+- Hyd_enzyme - a subgroup 
+- peat_type - a subgroup
+- depth_class - a subgroup
+- duration - a subgroup
+- subgroup - a subgroup not used for analysis, but to clarify distinctions between subgroups from the same paper
+- n - number of data points, a required field for the meta-analysis
+- r - the correlation effect, a required field for the meta-analysis
+
+Note: for subgroup analysis, the order the subgroup categories appear vertically in csv columns governs order of subgroups on forest plot
+
+```{r}
+## load data from CSV containing correlations (r) and n values
+res.all <- read_csv("./datasets/example_metaanalysis-metacor.csv")
+glimpse(res.all)
+```
+
+```{r}
+#meta analysis using a random effects model - all samples
+m.cor.all <- metacor(data = res.all,
+                 cor = r, 
+                 n = n,
+                 studlab = paper,
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 keepdata = TRUE,
+                 )
+summary(m.cor.all)
+```
+
+```{r}
+# create png forest plot for all sample
+png(file = "./output_figures/metacor_forest_plot.png", width = 9500, height = 18000, res = 600)
+
+
+forest(m.cor.all,
+       sortvar = TE,
+       random = TRUE,
+       text.random = "Overall effect",
+       label.left = "Negative correlation",
+       label.right = "Positive correlation",
+       leftcols = c("paper", "Hyd_enzyme", "PO_enzyme", "peat_type","depth_class","subgroup","n"),
+       leftlabs = c("Study\n", "Hydrolase \nEnzyme","Oxioreductase \n Enzyme", "Peatland type\n", "Depth \n/cm","Subgroup\n","n\n"),
+       rightcols = c("effect","w.random"),
+       rightlabs = c("Correlation \n(r)", "Weight\n"),
+       test.overall.random = TRUE,
+       print.stat = TRUE,
+       xlim=c(-1,1)
+       )
+
+dev.off()
+```
+
+```{r}
+#meta analysis using a random effects model - hydrolase enzyme subgroup analysis
+m.cor.hyd <- metacor(data = res.all,
+                 cor = r, 
+                 n = n,
+                 studlab = paper,
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 keepdata = TRUE,
+                 subgroup = Hyd_enzyme,
+                 tau.common = FALSE
+                 )
+```
+
+```{r}
+#meta analysis using a random effects model - PO enzyme subgroup analysis
+m.cor.PO <- metacor(data = res.all,
+                 cor = r, 
+                 n = n,
+                 studlab = paper,
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 keepdata = TRUE,
+                 subgroup = PO_enzyme,
+                 tau.common = FALSE
+                 )
+```
+
+```{r}
+#meta analysis using a random effects model - peat type subgroup analysis
+m.cor.typ <- metacor(data = res.all,
+                 cor = r, 
+                 n = n,
+                 studlab = paper,
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 keepdata = TRUE,
+                 subgroup = peat_type,
+                 tau.common = FALSE
+                 )
+```
+
+```{r}
+#meta analysis using a random effects model - sample depth subgroup analysis
+m.cor.dep <- metacor(data = res.all,
+                 cor = r, 
+                 n = n,
+                 studlab = paper,
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 keepdata = TRUE,
+                 subgroup = depth_class,
+                 tau.common = FALSE
+                 )
+```
+
+```{r}
+#meta analysis using a random effects model - intervention duration analysis
+m.cor.dur <- metacor(data = res.all,
+                 cor = r, 
+                 n = n,
+                 studlab = paper,
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 keepdata = TRUE,
+                 subgroup = duration,
+                 tau.common = FALSE
+                 )
+
+```
+
+```{r}
+# combining metaanalyses for different subgroups
+m.bind.sub <- metabind(m.cor.hyd, m.cor.PO, m.cor.typ, m.cor.dep,m.cor.dur,
+                       name = c ("Hydrolase Enzyme", "Oxioreductase Enzyme", "Peatland type", "Sample depth", "Intervention duration"),
+                      random = TRUE)
+
+summary(m.bind.sub)                      
+```
+
+```{r}
+# create png plot for subgroup analysis
+png(file = "./output_figures/metacor_forest_plot_subgroups.png", width = 5250, height = 5400, res = 600)
+
+
+forest(m.bind.sub,
+       random = TRUE, # use random effects model
+       text.random = "Overall effect", # label for overall effect
+       label.left = "Negative correlation", # labels for the sides of the axis
+       label.right = "Positive correlation",
+       xlim=c(-1,1), # axis values
+       rightlabs = c("r\n", "95% CI\n"), #labels of the right side
+       leftlabs = c('Subgroup\n', "Datapoints\n (k)", "Subgroup \nP-value" ),
+       overall.hetstat = F,
+       test.overall.random = TRUE, #include p-value test for overall summary
+       )
+
+dev.off()
+```
+
+```{r}
+#create funnel plot for risk of missing studies bias assessment
+png(file = "./output_funnelplots/metacor_funnel_plot.png",width = 4000, height = 3000, res = 600)
+
+funnel(m.cor.all, random=T, level = 0.95, contour = c(0.9, 0.95, 0.99)) 
+
+dev.off()
+```
+
+```{r}
+#Egger's test for funnel plot asymmetry
+metabias(m.cor.all, method.bias = "Egger")
+```
+
+```{r}
+#trimfill procedure on the meta-analysis of all results
+tf <- trimfill(m.cor.all)
+tf
+```

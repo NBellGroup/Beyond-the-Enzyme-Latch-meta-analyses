@@ -1,0 +1,202 @@
+processing based on: https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/pooling-es.html#pooling-cor
+
+meta package documentation https://cran.r-project.org/web/packages/meta/meta.pdf
+
+```{r}
+#install library packagages
+library(tidyverse)
+library(meta)
+```
+This code uses the metagen function in meta to do the meta- analysis on data with binary outcomes. However, as some data was in different formats such as correlational data, all data was converted to the standardised mean difference (d) with a standard error of d (SEd). Data was processed in this form, and then the output converted to a response ratio. 
+
+Details on converting between effect measurements:
+Borenstein, M., Hedges, L.V., Higgins, J.P.T., Rothstein, H.R., 2009. Converting Among Effect Sizes, in: Introduction to Meta-Analysis. John Wiley & Sons, Ltd, pp. 45–49. doi:10.1002/9780470743386.ch7
+
+The CSV for meta-analysis using this code has columns;
+- paper - the name of the source paper (label applied in forest plots)
+- Hyd_enzyme - a subgroup 
+- peat_type - a subgroup
+- depth_class - a subgroup
+- manipulation - a subgroup
+- duration - a subgroup 
+- subgroup - a subgroup not used for analysis, but to clarify distinctions between subgroups from the same paper
+- n - number of data points, a required field for the meta-analysis
+- d - standardised mean difference , a required field for the meta-analysis
+- SEd - standard error of d, a required field for the meta-analysis
+
+Note: for subgroup analysis, the order the subgroup categories appear vertically in csv columns governs order of subgroups on forest plot
+```{r}
+## load data from CSV containing n, d, and SEd
+res.all <- read_csv("./datasets/example_metaanalysis-metagen.csv")
+glimpse(res.all)
+```
+
+```{r}
+#meta analysis using a random effects model - all samples
+# ROM creates ratio effect/control = oxic/anoxic
+m.gen.all <- metagen(data = res.all,
+                 TE = d,
+                 seTE = SEd,
+                 studlab = paper,
+                 sm = "ROM",
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK")
+summary(m.gen.all)
+```
+
+```{r}
+# create png forest plot for all samples
+png(file = "./output_figures/metagen_forest_plot.png", width = 10000, height = 39000, res = 600)
+
+forest(m.gen.all,
+       sortvar = TE,
+       random = TRUE,
+       text.random = "Overall effect",
+       label.left = "Favours anoxia",
+       label.right = "Favours oxia",
+       leftcols = c("paper", "Hyd_enzyme", "peat_type","depth_class","subgroup"),
+       leftlabs = c("Study \n", "Hydrolase \nEnzyme", "Peatland type\n", "Depth\n/cm","Subgroup\n","n\n"),
+       rightcols = c("effect","w.random"),
+       rightlabs = c("Response\nratio", "Weight\n"),
+       test.overall.random = TRUE,
+       print.stat = TRUE,
+       #xlim=c(0,10)
+       )
+
+dev.off()
+```
+
+```{r}
+#meta analysis using a random effects model - hydrolase enzyme subgroup analysis
+m.gen.hyd <- metagen(data = res.all,
+                 TE = d,
+                 seTE = SEd,
+                 studlab = paper,
+                 sm = "ROM",
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 subgroup = Hyd_enzyme,
+                 tau.common = FALSE
+                 )
+
+```
+
+```{r}
+#meta analysis using a random effects model - peat type subgroup analysis
+m.gen.typ <- metagen(data = res.all,
+                 TE = d,
+                 seTE = SEd,
+                 studlab = paper,
+                 sm = "ROM",
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 subgroup = peat_type,
+                 tau.common = FALSE
+                 )
+
+```
+
+```{r}
+#meta analysis using a random effects model - sample depth subgroup analysis
+m.gen.dep <- metagen(data = res.all,
+                 TE = d,
+                 seTE = SEd,
+                 studlab = paper,
+                 sm = "ROM",
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 subgroup = depth_class,
+                 tau.common = FALSE
+                 )
+
+```
+
+```{r}
+#meta analysis using a random effects model - sample depth subgroup analysis
+m.gen.man <- metagen(data = res.all,
+                 TE = d,
+                 seTE = SEd,
+                 studlab = paper,
+                 sm = "ROM",
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 subgroup = manipulation,
+                 tau.common = FALSE
+                 )
+
+```
+
+```{r}
+#meta analysis using a random effects model - intervention duration analysis
+m.gen.dur <- metagen(data = res.all,
+                 TE = d,
+                 seTE = SEd,
+                 studlab = paper,
+                 sm = "ROM",
+                 fixed = FALSE,
+                 random = TRUE,
+                 method.tau = "REML",
+                 method.random.ci = "HK",
+                 subgroup = duration,
+                 tau.common = FALSE
+                 )
+
+```
+
+```{r}
+# combining metaanalyses for different subgroups
+m.bind.sub <- metabind(m.gen.hyd, m.gen.typ, m.gen.dep, m.gen.man,m.gen.dur,
+                       name = c("Hydrolase enzyme", "Peatland type", "Sample depth", "Independant variable manipulation", "Intervention duration"),
+                       random = TRUE)
+
+summary(m.bind.sub)                      
+```
+
+```{r}
+# create png plot for subgroup analysis
+png(file = "./output_figures/metagen_forest_plot_subgroups.png", width = 5000, height = 6400, res = 600)
+
+
+forest(m.bind.sub,
+       random = TRUE, # use random effects model
+       text.random = "Overall effect", # label for overall effect
+       overall.hetstat = F,
+       label.left = "Favours anoxia", # labels for the sides of the axis
+       label.right = "Favours oxia",
+       rightlabs = c("Response\nratio", "95% CI\n"), #labels of the right side
+       leftlabs = c('Subgroup\n', "Datapoints\n(k)", "Subgroup\nP-value" ),
+       test.overall.random = TRUE, #include p-value test for overall summary
+       )
+
+dev.off()
+```
+
+```{r}
+#create funnel plot for risk of missing studies bias assessment
+png(file = "./output_funnelplots/metagen_funnel_plot.png",width = 4000, height = 3000, res = 600)
+
+funnel(m.gen.all, random=T, level = 0.95, contour = c(0.9, 0.95, 0.99)) 
+
+dev.off()
+```
+
+```{r}
+#Egger's test for funnel plot asymmetry
+metabias(m.gen.all, method.bias = "Egger")
+```
+
+```{r}
+#trimfill procedure on the meta-analysis of all results
+tf <- trimfill(m.gen.all)
+tf
+```
