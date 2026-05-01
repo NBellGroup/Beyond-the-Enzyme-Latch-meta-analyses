@@ -13,7 +13,7 @@ The 'ROB' R notebook contains code used to process and generate figures showing 
 
 The 'all_data_representation' R notebook contains code used to process and generate figures showing the representativness of the meta-analyses.
 
-The data used to perform the analyses is available here;
+The data used to perform the analyses is available here; Birch, Eleanor; Bell, Nicholle. (2026). Beyond the Enzyme-Latch systematic review and meta-analyses, [dataset]. University of Edinburgh. School of Chemistry. Bell research group. https://doi.org/10.7488/ds/8123.
 
 
 ## Authors
